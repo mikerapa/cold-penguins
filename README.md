@@ -1,11 +1,13 @@
 # Cold Penguins
 
-A mod for Minecraft Java Edition 1.21.1 with NeoForge 21.1.232 or a newer 21.1 release.
+A mod for Minecraft Java Edition 26.3 with NeoForge 26.3.0.101 or a newer 26.3 release.
+
+This branch ports Cold Penguins to 26.3. The original Minecraft 1.21.1 version remains on `main`.
 
 ## Play
 
-1. Install NeoForge for Minecraft 1.21.1.
-2. Remove the previous Cold Penguins JAR if you are upgrading. Put `cold-penguins-1.9.1.jar` in that installation's `mods` folder. For multiplayer, install it on the server and on each client.
+1. Install NeoForge for Minecraft 26.3 and use Java 25.
+2. Remove the previous Cold Penguins JAR if you are upgrading. Put `cold-penguins-1.9.1+mc26.3.jar` in that installation's `mods` folder. For multiplayer, install it on the server and on each client.
 3. Launch the NeoForge profile. Look for penguins in snowy plains, snowy beaches, snowy taigas, and other frozen biomes. Natural spawn attempts happen on dry land and form flocks of five to ten with both adults and chicks. Terrain and the passive mob cap can leave smaller flocks. Penguins from the same spawn group remember their family and try to stay within 30 blocks of each other, including after a world reload. In Creative mode, the Penguin Spawn Egg is in the Spawn Eggs tab. With cheats enabled, you can also use `/summon coldpenguins:penguin` in an open area.
 
 Right-click a penguin with an empty main hand to pet it. Hearts and a contact call show that it was petted. Penguins occasionally call while walking and sometimes flap their flippers on land. The call is usually a trill, with a one-in-five chance of a honk. Both calls use field recordings. The trill is from a little penguin, and the honk is from a Galápagos penguin. See the audio credits packaged in the JAR. Penguins honk when they breed or take damage. Adults fight back against their attacker, while chicks flee. Penguins can dive and swim at any depth without drowning. They jump up toward shore waypoints to climb out onto full-block banks and ice. While swimming, they hunt and eat cod and salmon within 100 blocks. They head for land if no prey is present or the three-minute swim limit is approaching. At the limit, a penguin still in the water returns directly to a safe shore if one is available. Penguins keep looking for an exit when no safe shore can be found. Attacks against players deal one damage point (half a heart) before armor and other reductions. Petting drops one Penguin Feather. Yellow-and-white adults drop yellow feathers, while other penguins drop black feathers. Penguins also drop a feather of the same color on a damaging hit they survive or when they die, subject to Minecraft's mob loot rule.
@@ -20,9 +22,11 @@ Chicks are half a block tall, with grey feathers, orange feet and beaks, and bla
 
 ## Build from source
 
-Run `./gradlew build` on macOS or Linux, or `gradlew.bat build` on Windows. The Gradle wrapper downloads the build dependencies on the first run. The project uses a Java 21 toolchain. Find the resulting mod in `build/libs/`.
+Run `./gradlew build` on macOS or Linux, or `gradlew.bat build` on Windows. The Gradle wrapper downloads the build dependencies on the first run. The project uses a Java 25 toolchain and Gradle 9.2.1. Run Gradle with a Java 25 JDK (`JAVA_HOME` should point to it). Find the resulting mod in `build/libs/`.
 
 Use `./gradlew runClient` to open a development client.
+
+Run `./gradlew runGameTestServer` for server integration checks covering saved penguins, nest hatching, loot, and item components. These development tests are excluded from the release JAR.
 
 Craft four vanilla spectral arrows with one yellow Penguin Feather, one flint, and one stick in any arrangement.
 

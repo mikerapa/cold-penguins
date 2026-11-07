@@ -4,7 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -22,7 +24,7 @@ import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -41,15 +43,15 @@ import net.minecraft.world.entity.ai.navigation.AmphibiousPathNavigation;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.ai.util.DefaultRandomPos;
 import net.minecraft.world.entity.ai.util.LandRandomPos;
-import net.minecraft.world.entity.animal.AbstractFish;
+import net.minecraft.world.entity.animal.fish.AbstractFish;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.animal.Cod;
-import net.minecraft.world.entity.animal.Salmon;
+import net.minecraft.world.entity.animal.fish.Cod;
+import net.minecraft.world.entity.animal.fish.Salmon;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.ServerLevelAccessor;
@@ -211,7 +213,17 @@ public final class Penguin extends Animal {
         Vec3 push = toward.normalize().scale(0.24);
         setDeltaMovement(push.x, 0.52, push.z);
         nextShoreJumpTick = tickCount + 12;
-        hasImpulse = true;
+        syncVelocity = true;
+    }
+
+    private static java.util.Optional<BlockPos> findClosestMatch(BlockPos origin, int horizontal,
+            int vertical, java.util.function.Predicate<BlockPos> predicate) {
+        for (BlockPos candidate : BlockPos.withinBoxByManhattanDistance(origin, horizontal, vertical, horizontal)) {
+            if (predicate.test(candidate)) {
+                return java.util.Optional.of(candidate.immutable());
+            }
+        }
+        return java.util.Optional.empty();
     }
 
     private void rollPlumage() {
@@ -219,7 +231,7 @@ public final class Penguin extends Animal {
     }
 
     static Penguin createChick(ServerLevel level) {
-        Penguin chick = ColdPenguins.PENGUIN.get().create(level);
+        Penguin chick = ColdPenguins.PENGUIN.get().create(level, EntitySpawnReason.BREEDING);
         if (chick != null) {
             chick.rollPlumage();
             chick.setBaby(true);
@@ -229,9 +241,9 @@ public final class Penguin extends Animal {
 
     @Override
     public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
-                                        MobSpawnType reason, SpawnGroupData groupData) {
+                                        EntitySpawnReason reason, SpawnGroupData groupData) {
         rollPlumage();
-        boolean natural = reason == MobSpawnType.NATURAL || reason == MobSpawnType.CHUNK_GENERATION;
+        boolean natural = reason == EntitySpawnReason.NATURAL || reason == EntitySpawnReason.CHUNK_GENERATION;
         if (!natural) {
             return super.finalizeSpawn(level, difficulty, reason, new AgeableMobGroupData(false));
         }
@@ -253,7 +265,7 @@ public final class Penguin extends Animal {
 
     @Override
     public void travel(Vec3 movement) {
-        if (isControlledByLocalInstance() && isInWater()) {
+        if (isLocalInstanceAuthoritative() && isInWater()) {
             moveRelative(getSpeed(), movement);
             move(MoverType.SELF, getDeltaMovement());
             setDeltaMovement(getDeltaMovement().scale(0.9));
@@ -267,25 +279,25 @@ public final class Penguin extends Animal {
     }
 
     @Override
-    public boolean doHurtTarget(Entity target) {
+    public boolean doHurtTarget(ServerLevel server, Entity target) {
         if (target instanceof Player) {
-            boolean hit = target.hurt(damageSources().mobAttack(this), 1.0F);
+            boolean hit = target.hurtServer(server, damageSources().mobAttack(this), 1.0F);
             if (hit) {
                 setLastHurtMob(target);
             }
             return hit;
         }
         boolean hunting = isInWater() && target.isInWater() && isPrey(target);
-        boolean hit = super.doHurtTarget(target);
+        boolean hit = super.doHurtTarget(server, target);
         if (hunting && hit && !target.isAlive()) {
             heal(2.0F);
-            playSound(SoundEvents.GENERIC_EAT, 0.55F, getVoicePitch());
+            playSound(SoundEvents.GENERIC_EAT.value(), 0.55F, getVoicePitch());
         }
         return hit;
     }
 
     public static boolean checkLandSpawnRules(EntityType<Penguin> type, LevelAccessor level,
-                                              MobSpawnType reason, BlockPos position, RandomSource random) {
+                                              EntitySpawnReason reason, BlockPos position, RandomSource random) {
         BlockPos ground = position.below();
         return level.getFluidState(position).isEmpty()
                 && level.getFluidState(ground).isEmpty()
@@ -295,12 +307,12 @@ public final class Penguin extends Animal {
     }
 
     @Override
-    public boolean hurt(DamageSource source, float amount) {
+    public boolean hurtServer(ServerLevel server, DamageSource source, float amount) {
         float previousHealth = getHealth();
-        boolean hurt = super.hurt(source, amount);
-        if (hurt && level() instanceof ServerLevel server && isAlive() && getHealth() < previousHealth
-                && server.getGameRules().getBoolean(GameRules.RULE_DOMOBLOOT)) {
-            spawnAtLocation(featherItem());
+        boolean hurt = super.hurtServer(server, source, amount);
+        if (hurt && isAlive() && getHealth() < previousHealth
+                && server.getGameRules().get(GameRules.MOB_DROPS)) {
+            spawnAtLocation(server, featherItem());
         }
         return hurt;
     }
@@ -332,7 +344,7 @@ public final class Penguin extends Animal {
             return;
         }
         int checked = 0;
-        for (BlockPos candidate : BlockPos.withinManhattan(blockPosition(), 7, 3, 7)) {
+        for (BlockPos candidate : BlockPos.withinBoxByManhattanDistance(blockPosition(), 7, 3, 7)) {
             if (!PenguinNestBlock.isAvailable(level, candidate)) {
                 continue;
             }
@@ -351,18 +363,24 @@ public final class Penguin extends Animal {
     }
 
     @Override
-    public void setBaby(boolean baby) {
-        setAge(baby ? -CHICK_AGE_TICKS : 0);
-        if (baby) {
+    protected int getBabyStartAge() {
+        return -CHICK_AGE_TICKS;
+    }
+
+    @Override
+    public void setAge(int age) {
+        boolean wasBaby = isBaby();
+        super.setAge(age);
+        if (age < 0 && (!wasBaby || growsUpAt == 0)) {
             growsUpAt = level().getGameTime() + CHICK_AGE_TICKS;
-        } else {
+        } else if (age >= 0) {
             growsUpAt = 0;
         }
     }
 
     @Override
     public void aiStep() {
-        if (!level().isClientSide && isBaby() && growsUpAt > 0 && level().getGameTime() >= growsUpAt) {
+        if (!level().isClientSide() && isBaby() && growsUpAt > 0 && level().getGameTime() >= growsUpAt) {
             setBaby(false);
         }
         super.aiStep();
@@ -405,24 +423,24 @@ public final class Penguin extends Animal {
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
         if (held.is(ColdPenguins.SANTA_HAT.get()) && getItemBySlot(EquipmentSlot.HEAD).isEmpty()) {
-            if (!level().isClientSide) {
+            if (!level().isClientSide()) {
                 setItemSlot(EquipmentSlot.HEAD, held.copyWithCount(1));
                 setDropChance(EquipmentSlot.HEAD, 2.0F);
                 setPersistenceRequired();
                 held.consume(1, player);
                 playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.8F, 1.0F);
             }
-            return InteractionResult.sidedSuccess(level().isClientSide);
+            return InteractionResult.SUCCESS;
         }
         if (player.isShiftKeyDown() && held.isEmpty() && hasSantaHat()) {
-            if (!level().isClientSide) {
+            if (!level().isClientSide()) {
                 ItemStack hat = getItemBySlot(EquipmentSlot.HEAD);
                 setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
                 if (!player.addItem(hat)) {
-                    spawnAtLocation(hat);
+                    spawnAtLocation((ServerLevel) level(), hat);
                 }
             }
-            return InteractionResult.sidedSuccess(level().isClientSide);
+            return InteractionResult.SUCCESS;
         }
         if (isBaby() && isFood(player.getItemInHand(hand))) {
             return InteractionResult.PASS;
@@ -433,11 +451,11 @@ public final class Penguin extends Animal {
 
         if (level() instanceof ServerLevel server) {
             playContactCall(getSoundVolume());
-            spawnAtLocation(featherItem());
+            spawnAtLocation(server, featherItem());
             server.sendParticles(ParticleTypes.HEART, getX(), getY() + getBbHeight() + 0.2, getZ(),
                     3, 0.2, 0.1, 0.2, 0.0);
         }
-        return InteractionResult.sidedSuccess(level().isClientSide);
+        return InteractionResult.SUCCESS;
     }
 
     private void playContactCall(float volume) {
@@ -447,7 +465,7 @@ public final class Penguin extends Animal {
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
+    public void addAdditionalSaveData(ValueOutput tag) {
         super.addAdditionalSaveData(tag);
         tag.putLong("GrowsUpAt", growsUpAt);
         tag.putBoolean("GoldenPlumage", hasGoldenPlumage());
@@ -457,19 +475,19 @@ public final class Penguin extends Animal {
             tag.putLong("LastDryLand", lastDryLand.asLong());
         }
         if (familyId != null) {
-            tag.putUUID("Family", familyId);
+            tag.store("Family", UUIDUtil.CODEC, familyId);
         }
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
+    public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
-        growsUpAt = tag.getLong("GrowsUpAt");
-        entityData.set(GOLDEN_PLUMAGE, tag.getBoolean("GoldenPlumage"));
-        swimStarted = tag.contains("SwimStarted") ? tag.getLong("SwimStarted") : -1;
-        nextSwimTime = tag.getLong("NextSwimTime");
-        lastDryLand = tag.contains("LastDryLand") ? BlockPos.of(tag.getLong("LastDryLand")) : null;
-        familyId = tag.hasUUID("Family") ? tag.getUUID("Family") : null;
+        growsUpAt = tag.getLongOr("GrowsUpAt", 0);
+        entityData.set(GOLDEN_PLUMAGE, tag.getBooleanOr("GoldenPlumage", false));
+        swimStarted = tag.getLongOr("SwimStarted", -1);
+        nextSwimTime = tag.getLongOr("NextSwimTime", 0);
+        lastDryLand = tag.getLong("LastDryLand").map(BlockPos::of).orElse(null);
+        familyId = tag.read("Family", UUIDUtil.CODEC).orElse(null);
         // Resize penguins saved by the original release.
         getAttribute(Attributes.SCALE).setBaseValue(1.0);
         refreshDimensions();
@@ -850,7 +868,7 @@ public final class Penguin extends Animal {
                 return null;
             }
             BlockPos water = level().getGameTime() >= nextSwimTime && random.nextInt(3) == 0
-                    ? BlockPos.findClosestMatch(blockPosition(), 6, 2,
+                    ? findClosestMatch(blockPosition(), 6, 2,
                             pos -> level().getFluidState(pos).is(FluidTags.WATER)).orElse(null)
                     : null;
             Vec3 destination = water == null ? LandRandomPos.getPos(Penguin.this, 8, 5) : Vec3.atBottomCenterOf(water);
@@ -874,7 +892,7 @@ public final class Penguin extends Animal {
     }
 
     private BlockPos findShore() {
-        BlockPos nearby = BlockPos.findClosestMatch(blockPosition(), 10, 6, this::canStandAt)
+        BlockPos nearby = findClosestMatch(blockPosition(), 10, 6, this::canStandAt)
                 .map(BlockPos::immutable).orElse(null);
         if (nearby != null) {
             return nearby;
@@ -964,7 +982,7 @@ public final class Penguin extends Animal {
                 getLookControl().setLookAt(prey, 20.0F, 20.0F);
                 if (now >= nextAttack && isWithinMeleeAttackRange(prey)) {
                     nextAttack = now + 20;
-                    doHurtTarget(prey);
+                    doHurtTarget((ServerLevel) level(), prey);
                 }
             }
         }

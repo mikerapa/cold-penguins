@@ -2,7 +2,7 @@ package dev.coldpenguins;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -12,12 +12,14 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.SpawnPlacementTypes;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.ArmorMaterial;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.SpawnEggItem;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.InstrumentComponent;
+
 import net.minecraft.world.item.Instrument;
 import net.minecraft.world.item.JukeboxSong;
-import net.neoforged.neoforge.common.DeferredSpawnEggItem;
+
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.VanillaGameEvent;
@@ -37,11 +39,8 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import net.neoforged.neoforge.registries.DeferredHolder;
 
 import java.util.function.Supplier;
-import java.util.List;
-import java.util.Map;
 
 @Mod(ColdPenguins.ID)
 public final class ColdPenguins {
@@ -52,87 +51,78 @@ public final class ColdPenguins {
     public static final Supplier<EntityType<Penguin>> PENGUIN = ENTITIES.register("penguin",
             () -> EntityType.Builder.of(Penguin::new, MobCategory.CREATURE)
                     .sized(0.75F, 1.0F).eyeHeight(0.85F).clientTrackingRange(10)
-                    .build(ID + ":penguin"));
+                    .build(ResourceKey.create(Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(ID, "penguin"))));
 
     private static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(ID);
     private static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, ID);
     static final Supplier<PenguinNestBlock> NEST = BLOCKS.register("penguin_nest",
-            () -> new PenguinNestBlock(BlockBehaviour.Properties.of().strength(0.5F)
-                    .sound(SoundType.STONE).noCollission().noOcclusion()));
+            id -> new PenguinNestBlock(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, id)).strength(0.5F)
+                    .sound(SoundType.STONE).noCollision().noOcclusion()));
     static final Supplier<BlockEntityType<PenguinNestBlock.Nest>> NEST_ENTITY = BLOCK_ENTITIES.register("penguin_nest",
-            () -> BlockEntityType.Builder.of(PenguinNestBlock.Nest::new, NEST.get()).build(null));
-
-    private static final DeferredRegister<ArmorMaterial> ARMOR_MATERIALS =
-            DeferredRegister.create(Registries.ARMOR_MATERIAL, ID);
-    private static final DeferredHolder<ArmorMaterial, ArmorMaterial> SANTA_HAT_MATERIAL =
-            ARMOR_MATERIALS.register("santa_hat", () -> new ArmorMaterial(
-                    Map.of(), 0, SoundEvents.ARMOR_EQUIP_LEATHER, () -> Ingredient.EMPTY,
-                    List.of(new ArmorMaterial.Layer(ResourceLocation.fromNamespaceAndPath(ID, "santa_hat"))),
-                    0.0F, 0.0F));
+            () -> new BlockEntityType<>(PenguinNestBlock.Nest::new, java.util.Set.of(NEST.get())));
 
     private static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(ID);
 
     public static final Supplier<Item> SANTA_HAT = ITEMS.register("santa_hat",
-            () -> new ArmorItem(SANTA_HAT_MATERIAL, ArmorItem.Type.HELMET, new Item.Properties().stacksTo(1)));
+            id -> new Item(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id)).stacksTo(1).component(DataComponents.EQUIPPABLE, net.minecraft.world.item.equipment.Equippable.builder(EquipmentSlot.HEAD)
+                    .setEquipSound(SoundEvents.ARMOR_EQUIP_LEATHER)
+                    .setAsset(ResourceKey.create(net.minecraft.world.item.equipment.EquipmentAssets.ROOT_ID, Identifier.fromNamespaceAndPath(ID, "santa_hat"))).build())));
 
     public static final Supplier<Item> PENGUIN_EGG = ITEMS.register("penguin_egg",
-            () -> new PenguinEggItem(new Item.Properties().stacksTo(16)));
+            id -> new PenguinEggItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id)).stacksTo(16)));
 
     public static final Supplier<Item> PENGUIN_SPAWN_EGG = ITEMS.register("penguin_spawn_egg",
-            () -> new DeferredSpawnEggItem(PENGUIN, 0x252D39, 0xF0EDE3, new Item.Properties()));
+            id -> new SpawnEggItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id)).spawnEgg(PENGUIN.get())));
 
     static final ResourceKey<JukeboxSong> PENGUIN_DANCE_SONG = ResourceKey.create(
-            Registries.JUKEBOX_SONG, ResourceLocation.fromNamespaceAndPath(ID, "penguin_dance"));
+            Registries.JUKEBOX_SONG, Identifier.fromNamespaceAndPath(ID, "penguin_dance"));
     public static final Supplier<Item> PENGUIN_DANCE_DISC = ITEMS.register("penguin_dance_disc",
-            () -> new Item(new Item.Properties().stacksTo(1).jukeboxPlayable(PENGUIN_DANCE_SONG)));
+            id -> new Item(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id)).stacksTo(1).jukeboxPlayable(PENGUIN_DANCE_SONG)));
 
     public static final Supplier<Item> PENGUIN_FEATHER = ITEMS.register("penguin_feather",
-            () -> new Item(new Item.Properties()));
+            id -> new Item(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id))));
     public static final Supplier<Item> YELLOW_PENGUIN_FEATHER = ITEMS.register("yellow_penguin_feather",
-            () -> new Item(new Item.Properties()));
+            id -> new Item(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id))));
     static final TagKey<Instrument> PENGUIN_HORNS = TagKey.create(Registries.INSTRUMENT,
-            ResourceLocation.fromNamespaceAndPath(ID, "penguin_horns"));
+            Identifier.fromNamespaceAndPath(ID, "penguin_horns"));
     public static final Supplier<Item> PENGUIN_HORN = ITEMS.register("penguin_horn",
-            () -> new PenguinHornItem(new Item.Properties().stacksTo(1), PENGUIN_HORNS));
-    private static final DeferredRegister<Instrument> INSTRUMENTS =
-            DeferredRegister.create(Registries.INSTRUMENT, ID);
-    private static final Supplier<Instrument> PENGUIN_INSTRUMENT = INSTRUMENTS.register("penguin",
-            () -> new Instrument(SoundEvents.GOAT_HORN_SOUND_VARIANTS.getFirst(), 140, 100.0F));
-
+            id -> new PenguinHornItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id))
+                    .stacksTo(1).useCooldown(7.0F)
+                    .delayedComponent(DataComponents.INSTRUMENT, lookup -> new InstrumentComponent(
+                            lookup.lookupOrThrow(Registries.INSTRUMENT).getOrThrow(ResourceKey.create(
+                                    Registries.INSTRUMENT, Identifier.fromNamespaceAndPath(ID, "penguin")))))));
     public static final Supplier<Item> BLACK_TIPPED_ARROW = ITEMS.register("black_tipped_arrow",
-            () -> new BlackTippedArrowItem(new Item.Properties()));
+            id -> new BlackTippedArrowItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id))));
 
     public static final Supplier<EntityType<BlackTippedArrow>> BLACK_ARROW_PROJECTILE =
             ENTITIES.register("black_tipped_arrow",
                     () -> EntityType.Builder.<BlackTippedArrow>of(BlackTippedArrow::new, MobCategory.MISC)
                             .sized(0.5F, 0.5F).clientTrackingRange(4).updateInterval(20)
-                            .build(ID + ":black_tipped_arrow"));
+                            .build(ResourceKey.create(Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(ID, "black_tipped_arrow"))));
 
     public static final Supplier<EntityType<ThrownPenguinEgg>> THROWN_EGG = ENTITIES.register("penguin_egg",
             () -> EntityType.Builder.<ThrownPenguinEgg>of(ThrownPenguinEgg::new, MobCategory.MISC)
                     .sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10)
-                    .build(ID + ":penguin_egg"));
+                    .build(ResourceKey.create(Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(ID, "penguin_egg"))));
 
     private static final DeferredRegister<SoundEvent> SOUNDS =
             DeferredRegister.create(Registries.SOUND_EVENT, ID);
 
     public static final Supplier<SoundEvent> PENGUIN_TRILL = SOUNDS.register("penguin.trill",
-            () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(ID, "penguin.trill")));
+            () -> SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(ID, "penguin.trill")));
     public static final Supplier<SoundEvent> PENGUIN_HONK = SOUNDS.register("penguin.honk",
-            () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(ID, "penguin.honk")));
+            () -> SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(ID, "penguin.honk")));
 
     public static final Supplier<SoundEvent> PENGUIN_DANCE_SOUND = SOUNDS.register("music.penguin_dance",
-            () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(ID, "music.penguin_dance")));
+            () -> SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(ID, "music.penguin_dance")));
 
     public ColdPenguins(IEventBus modBus) {
         ENTITIES.register(modBus);
         ITEMS.register(modBus);
-        ARMOR_MATERIALS.register(modBus);
         BLOCKS.register(modBus);
         BLOCK_ENTITIES.register(modBus);
         SOUNDS.register(modBus);
-        INSTRUMENTS.register(modBus);
         modBus.addListener(this::addCreativeItems);
         modBus.addListener(this::registerDispenserBehavior);
         modBus.addListener(this::registerAttributes);

@@ -4,7 +4,10 @@
   "spawners": {
     "type": "coldpenguins:penguin",
     "weight": 16,
-    "minCount": 5,
-    "maxCount": 10
+    "count": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 5,
+      "max_inclusive": 10
+    }
   }
 }

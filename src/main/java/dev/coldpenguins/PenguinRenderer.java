@@ -1,28 +1,25 @@
 package dev.coldpenguins;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.model.EntityModel;
-import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
@@ -32,14 +29,14 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 
 @EventBusSubscriber(modid = ColdPenguins.ID, value = Dist.CLIENT)
-public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.Model> {
-    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
+public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.State, PenguinRenderer.Model> {
+    private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(
             ColdPenguins.ID, "textures/entity/penguin.png");
 
-    private static final ResourceLocation CHICK_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier CHICK_TEXTURE = Identifier.fromNamespaceAndPath(
             ColdPenguins.ID, "textures/entity/penguin_chick.png");
 
-    private static final ResourceLocation GOLDEN_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier GOLDEN_TEXTURE = Identifier.fromNamespaceAndPath(
             ColdPenguins.ID, "textures/entity/penguin_golden.png");
 
     public PenguinRenderer(EntityRendererProvider.Context context) {
@@ -60,69 +57,84 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             private final SantaHatModel hat = new SantaHatModel();
 
             @Override
-            public HumanoidModel<?> getHumanoidArmorModel(LivingEntity entity, ItemStack stack,
-                                                          EquipmentSlot slot, HumanoidModel<?> original) {
+            public net.minecraft.client.model.Model getHumanoidArmorModel(ItemStack stack,
+                    net.minecraft.client.resources.model.EquipmentClientInfo.LayerType layerType,
+                    net.minecraft.client.model.Model original) {
                 return hat;
             }
         }, ColdPenguins.SANTA_HAT.get());
     }
 
-    private static final class SantaHatLayer extends RenderLayer<Penguin, Model> {
-        private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
+    public static final class State extends LivingEntityRenderState {
+        boolean golden, santaHat, dancing, buildingNest;
+        int entityId;
+    }
+
+    @Override
+    public State createRenderState() { return new State(); }
+
+    @Override
+    public void extractRenderState(Penguin penguin, State state, float partialTick) {
+        super.extractRenderState(penguin, state, partialTick);
+        state.golden = penguin.hasGoldenPlumage();
+        state.santaHat = penguin.hasSantaHat();
+        state.dancing = penguin.isDancing();
+        state.buildingNest = penguin.isBuildingNest();
+        state.entityId = penguin.getId();
+    }
+
+    private static final class SantaHatLayer extends RenderLayer<State, Model> {
+        private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(
                 ColdPenguins.ID, "textures/models/armor/santa_hat_layer_1.png");
         private final SantaHatModel hat = new SantaHatModel();
 
-        SantaHatLayer(RenderLayerParent<Penguin, Model> parent) {
+        SantaHatLayer(RenderLayerParent<State, Model> parent) {
             super(parent);
         }
 
         @Override
-        public void render(PoseStack pose, MultiBufferSource buffers, int light, Penguin penguin,
-                           float limbSwing, float limbAmount, float partialTick, float age,
+        public void submit(PoseStack pose, SubmitNodeCollector collector, int light, State penguin,
                            float headYaw, float headPitch) {
-            if (!penguin.hasSantaHat() || penguin.isInvisible()) {
+            if (!penguin.santaHat || penguin.isInvisible) {
                 return;
             }
             pose.pushPose();
-            getParentModel().root.translateAndRotate(pose);
+            getParentModel().root().translateAndRotate(pose);
             getParentModel().head.translateAndRotate(pose);
             pose.translate(0, 4.0F / 16.0F, 0);
             pose.scale(0.88F, 0.88F, 0.88F);
-            hat.head.render(pose, buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)), light,
-                    LivingEntityRenderer.getOverlayCoords(penguin, 0), -1);
+            collector.submitModelPart(hat.head, pose, RenderTypes.entityCutout(TEXTURE), light,
+                    LivingEntityRenderer.getOverlayCoords(penguin, 0), null);
             pose.popPose();
         }
     }
 
     @Override
-    public ResourceLocation getTextureLocation(Penguin penguin) {
-        if (penguin.isBaby()) {
+    public Identifier getTextureLocation(State penguin) {
+        if (penguin.isBaby) {
             return CHICK_TEXTURE;
         }
-        return penguin.hasGoldenPlumage() ? GOLDEN_TEXTURE : TEXTURE;
+        return penguin.golden ? GOLDEN_TEXTURE : TEXTURE;
     }
 
     @Override
-    protected void setupRotations(Penguin penguin, PoseStack pose, float age, float yaw,
-                                  float partialTick, float scale) {
-        super.setupRotations(penguin, pose, age, yaw, partialTick, scale);
-        if (penguin.isInWater() && penguin.isAlive()) {
-            float pivot = 0.45F * penguin.getAgeScale();
-            float pitch = Mth.clamp(penguin.getViewXRot(partialTick), -80.0F, 80.0F);
+    protected void setupRotations(State penguin, PoseStack pose, float bodyRot, float scale) {
+        super.setupRotations(penguin, pose, bodyRot, scale);
+        if (penguin.isInWater && penguin.deathTime == 0) {
+            float pivot = 0.45F * penguin.ageScale;
+            float pitch = Mth.clamp(penguin.xRot, -80.0F, 80.0F);
             pose.translate(0, pivot, 0);
-            pose.mulPose(Axis.XP.rotationDegrees(-75.0F - pitch));
+            pose.rotate(Axis.XP.rotationDegrees(-75.0F - pitch));
             pose.translate(0, -pivot, 0);
         }
     }
 
     @Override
-    protected void scale(Penguin penguin, PoseStack pose, float partialTick) {
-        float scale = penguin.getAgeScale();
-        pose.scale(scale, scale, scale);
+    protected void scale(State penguin, PoseStack pose) {
+        pose.scale(penguin.ageScale, penguin.ageScale, penguin.ageScale);
     }
 
-    static final class Model extends EntityModel<Penguin> {
-        private final ModelPart root;
+    static final class Model extends EntityModel<State> {
         private final ModelPart head;
         private final ModelPart leftFlipper;
         private final ModelPart rightFlipper;
@@ -130,6 +142,19 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
         private final ModelPart rightFoot;
 
         Model() {
+            this(createRoot());
+        }
+
+        Model(ModelPart root) {
+            super(root);
+            head = root.getChild("head");
+            leftFlipper = root.getChild("left_flipper");
+            rightFlipper = root.getChild("right_flipper");
+            leftFoot = root.getChild("left_foot");
+            rightFoot = root.getChild("right_foot");
+        }
+
+        private static ModelPart createRoot() {
             MeshDefinition mesh = new MeshDefinition();
             PartDefinition parts = mesh.getRoot();
             parts.addOrReplaceChild("body", CubeListBuilder.create().texOffs(0, 0)
@@ -146,17 +171,17 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             parts.addOrReplaceChild("right_foot", CubeListBuilder.create().texOffs(42, 0)
                     .addBox(-1.5F, 0, -4, 3, 2, 5), PartPose.offset(-2, 22, 0));
 
-            root = LayerDefinition.create(mesh, 64, 32).bakeRoot();
-            head = root.getChild("head");
-            leftFlipper = root.getChild("left_flipper");
-            rightFlipper = root.getChild("right_flipper");
-            leftFoot = root.getChild("left_foot");
-            rightFoot = root.getChild("right_foot");
+            return LayerDefinition.create(mesh, 64, 32).bakeRoot();
         }
 
         @Override
-        public void setupAnim(Penguin penguin, float limbSwing, float limbSwingAmount,
-                              float age, float headYaw, float headPitch) {
+        public void setupAnim(State penguin) {
+            super.setupAnim(penguin);
+            float limbSwing = penguin.walkAnimationPos;
+            float limbSwingAmount = penguin.walkAnimationSpeed;
+            float age = penguin.ageInTicks;
+            float headYaw = penguin.yRot;
+            float headPitch = penguin.xRot;
             root.x = 0;
             root.y = 0;
             root.z = 0;
@@ -169,7 +194,7 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             head.yRot = headYaw * Mth.DEG_TO_RAD;
             head.xRot = headPitch * Mth.DEG_TO_RAD;
 
-            if (penguin.isInWater()) {
+            if (penguin.isInWater) {
                 float stroke = Mth.sin(age * 0.55F);
                 head.xRot = 0.0F;
                 leftFlipper.zRot = -0.95F + 0.40F * stroke;
@@ -177,7 +202,7 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
                 rightFlipper.xRot = leftFlipper.xRot;
                 leftFoot.xRot = -0.35F + 0.12F * stroke;
                 rightFoot.xRot = -0.35F - 0.12F * stroke;
-            } else if (penguin.isDancing()) {
+            } else if (penguin.dancing) {
                 float beat = age * (float) (Math.PI * 128.0 / (60.0 * 20.0));
                 float sway = Mth.sin(beat);
                 root.zRot = 0.19F * sway;
@@ -193,8 +218,8 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
                 rightFoot.y -= 1.5F * Math.max(0, -sway);
                 leftFoot.xRot = 0.2F * sway;
                 rightFoot.xRot = -0.2F * sway;
-            } else if (penguin.isBuildingNest()) {
-                float peck = (1.0F + Mth.sin((age + penguin.getId() * 1.7F) * 0.78F)) * 0.5F;
+            } else if (penguin.buildingNest) {
+                float peck = (1.0F + Mth.sin((age + penguin.entityId * 1.7F) * 0.78F)) * 0.5F;
                 root.xRot = 0.13F + 0.30F * peck;
                 root.z = -16.0F * Mth.sin(root.xRot);
                 head.xRot = 0.16F + 0.48F * peck;
@@ -215,7 +240,7 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
                 rightFoot.z = 1.6F * step;
                 leftFoot.xRot = 0.38F * step;
                 rightFoot.xRot = -0.38F * step;
-                float cycle = (age + (penguin.getId() & 63)) % 145.0F;
+                float cycle = (age + (penguin.entityId & 63)) % 145.0F;
                 float flap = cycle < 18.0F ? Mth.sin(cycle * 0.38F) * 0.42F : 0.0F;
                 leftFlipper.zRot = -0.15F - 0.20F * amplitude - flap;
                 leftFlipper.xRot = -0.28F * step;
@@ -224,10 +249,5 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             rightFlipper.zRot = -leftFlipper.zRot;
         }
 
-        @Override
-        public void renderToBuffer(PoseStack pose, VertexConsumer vertices, int light,
-                                   int overlay, int color) {
-            root.render(pose, vertices, light, overlay, color);
-        }
     }
 }

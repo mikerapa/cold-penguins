@@ -1,0 +1,8 @@
+{
+  "sound_event": "minecraft:item.goat_horn.sound.0",
+  "use_duration": 7.0,
+  "range": 100.0,
+  "description": {
+    "translate": "instrument.coldpenguins.penguin"
+  }
+}

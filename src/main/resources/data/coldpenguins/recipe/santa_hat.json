@@ -2,12 +2,8 @@
   "type": "minecraft:crafting_shapeless",
   "category": "equipment",
   "ingredients": [
-    {
-      "item": "minecraft:white_wool"
-    },
-    {
-      "item": "minecraft:red_wool"
-    }
+    "minecraft:white_wool",
+    "minecraft:red_wool"
   ],
   "result": {
     "id": "coldpenguins:santa_hat",

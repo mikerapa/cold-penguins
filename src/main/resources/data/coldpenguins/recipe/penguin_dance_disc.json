@@ -2,33 +2,15 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    {
-      "item": "minecraft:diamond"
-    },
-    {
-      "item": "coldpenguins:penguin_feather"
-    },
-    {
-      "item": "coldpenguins:penguin_feather"
-    },
-    {
-      "item": "coldpenguins:penguin_feather"
-    },
-    {
-      "item": "coldpenguins:penguin_feather"
-    },
-    {
-      "item": "coldpenguins:penguin_feather"
-    },
-    {
-      "item": "coldpenguins:penguin_feather"
-    },
-    {
-      "item": "coldpenguins:penguin_feather"
-    },
-    {
-      "item": "coldpenguins:penguin_feather"
-    }
+    "minecraft:diamond",
+    "coldpenguins:penguin_feather",
+    "coldpenguins:penguin_feather",
+    "coldpenguins:penguin_feather",
+    "coldpenguins:penguin_feather",
+    "coldpenguins:penguin_feather",
+    "coldpenguins:penguin_feather",
+    "coldpenguins:penguin_feather",
+    "coldpenguins:penguin_feather"
   ],
   "result": {
     "id": "coldpenguins:penguin_dance_disc",

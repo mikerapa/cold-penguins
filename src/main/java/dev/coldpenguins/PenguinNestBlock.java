@@ -1,12 +1,11 @@
 package dev.coldpenguins;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -26,17 +25,11 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 final class PenguinNestBlock extends BaseEntityBlock {
     static final IntegerProperty EGGS = IntegerProperty.create("eggs", 0, 3);
-    private static final MapCodec<PenguinNestBlock> CODEC = simpleCodec(PenguinNestBlock::new);
     private static final VoxelShape OUTLINE = Block.box(1, 0, 1, 15, 5, 15);
 
     PenguinNestBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(EGGS, 0));
-    }
-
-    @Override
-    protected MapCodec<PenguinNestBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -94,7 +87,7 @@ final class PenguinNestBlock extends BaseEntityBlock {
 
         private void incubate(ServerLevel level, BlockPos pos, BlockState state) {
             long gameTime = level.getGameTime();
-            long dayTime = level.getDayTime();
+            long dayTime = level.getDefaultClockTime();
             if (lastGameTime < 0) {
                 if (legacyHatchAt > 0) {
                     remainingTicks = Math.clamp(legacyHatchAt - gameTime, 0, INCUBATION_TICKS);
@@ -118,8 +111,8 @@ final class PenguinNestBlock extends BaseEntityBlock {
             for (int i = 0; i < eggs; i++) {
                 Penguin chick = Penguin.createChick(level);
                 if (chick != null) {
-                    chick.moveTo(pos.getX() + 0.28 + 0.22 * i, pos.getY() + 0.04, pos.getZ() + 0.5,
-                            level.random.nextFloat() * 360.0F, 0.0F);
+                    chick.snapTo(pos.getX() + 0.28 + 0.22 * i, pos.getY() + 0.04, pos.getZ() + 0.5,
+                            level.getRandom().nextFloat() * 360.0F, 0.0F);
                     if (level.addFreshEntity(chick)) {
                         hatched++;
                     }
@@ -127,7 +120,7 @@ final class PenguinNestBlock extends BaseEntityBlock {
             }
             if (hatched > 0) {
                 level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM,
-                                ColdPenguins.PENGUIN_EGG.get().getDefaultInstance()),
+                                ColdPenguins.PENGUIN_EGG.get()),
                         pos.getX() + 0.5, pos.getY() + 0.2, pos.getZ() + 0.5,
                         6 * hatched, 0.22, 0.12, 0.22, 0.06);
             }
@@ -141,8 +134,8 @@ final class PenguinNestBlock extends BaseEntityBlock {
         }
 
         @Override
-        protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-            super.saveAdditional(tag, registries);
+        protected void saveAdditional(ValueOutput tag) {
+            super.saveAdditional(tag);
             if (legacyHatchAt > 0) {
                 tag.putLong("HatchAt", legacyHatchAt);
             } else {
@@ -153,15 +146,15 @@ final class PenguinNestBlock extends BaseEntityBlock {
         }
 
         @Override
-        protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-            super.loadAdditional(tag, registries);
-            if (tag.contains("IncubationRemaining")) {
-                remainingTicks = Math.clamp(tag.getLong("IncubationRemaining"), 0, INCUBATION_TICKS);
-                lastGameTime = tag.getLong("LastIncubationGameTime");
-                lastDayTime = tag.getLong("LastIncubationDayTime");
+        protected void loadAdditional(ValueInput tag) {
+            super.loadAdditional(tag);
+            if (tag.getLong("IncubationRemaining").isPresent()) {
+                remainingTicks = Math.clamp(tag.getLongOr("IncubationRemaining", 0), 0, INCUBATION_TICKS);
+                lastGameTime = tag.getLongOr("LastIncubationGameTime", 0);
+                lastDayTime = tag.getLongOr("LastIncubationDayTime", 0);
                 legacyHatchAt = 0;
             } else {
-                legacyHatchAt = tag.getLong("HatchAt");
+                legacyHatchAt = tag.getLongOr("HatchAt", 0);
                 remainingTicks = INCUBATION_TICKS;
                 lastGameTime = -1;
             }

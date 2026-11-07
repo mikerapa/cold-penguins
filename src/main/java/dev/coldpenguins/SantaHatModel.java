@@ -6,9 +6,8 @@ import net.minecraft.client.model.geom.builders.CubeDeformation;
 import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
-import net.minecraft.world.entity.LivingEntity;
 
-final class SantaHatModel extends HumanoidModel<LivingEntity> {
+final class SantaHatModel extends HumanoidModel<net.minecraft.client.renderer.entity.state.HumanoidRenderState> {
     SantaHatModel() {
         super(createParts().bakeRoot());
     }

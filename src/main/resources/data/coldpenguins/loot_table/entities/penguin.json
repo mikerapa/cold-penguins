@@ -10,18 +10,16 @@
             {
               "type": "minecraft:item",
               "name": "coldpenguins:yellow_penguin_feather",
-              "conditions": [
-                {
-                  "condition": "minecraft:entity_properties",
-                  "entity": "this",
-                  "predicate": {
-                    "nbt": "{GoldenPlumage:1b}",
-                    "flags": {
-                      "is_baby": false
-                    }
+              "condition": {
+                "type": "minecraft:entity_properties",
+                "entity": "this",
+                "predicate": {
+                  "minecraft:nbt": "{GoldenPlumage:1b}",
+                  "minecraft:flags": {
+                    "is_baby": false
                   }
                 }
-              ]
+              }
             },
             {
               "type": "minecraft:item",
