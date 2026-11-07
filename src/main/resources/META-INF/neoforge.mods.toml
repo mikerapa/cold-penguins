@@ -1,0 +1,20 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+[[mods]]
+modId="coldpenguins"
+version="1.9.1"
+displayName="Cold Penguins"
+description="Cold-biome penguin flocks with throwable eggs, grey chicks, and black-tipped arrows."
+[[dependencies.coldpenguins]]
+modId="neoforge"
+type="required"
+versionRange="[21.1.232,21.2)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.coldpenguins]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1]"
+ordering="NONE"
+side="BOTH"

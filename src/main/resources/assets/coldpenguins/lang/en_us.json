@@ -1,0 +1,18 @@
+{
+  "entity.coldpenguins.penguin": "Penguin",
+  "item.coldpenguins.penguin_egg": "Penguin Egg",
+  "entity.coldpenguins.penguin_egg": "Penguin Egg",
+  "subtitles.coldpenguins.penguin.trill": "Penguin trills",
+  "subtitles.coldpenguins.penguin.honk": "Penguin honks",
+  "item.coldpenguins.penguin_feather": "Penguin Feather",
+  "item.coldpenguins.black_tipped_arrow": "Black-Tipped Arrow",
+  "entity.coldpenguins.black_tipped_arrow": "Black-Tipped Arrow",
+  "item.coldpenguins.penguin_spawn_egg": "Penguin Spawn Egg",
+  "block.coldpenguins.penguin_nest": "Penguin Nest",
+  "item.coldpenguins.penguin_dance_disc": "Music Disc",
+  "jukebox_song.coldpenguins.penguin_dance": "Penguin Dance",
+  "item.coldpenguins.yellow_penguin_feather": "Yellow Penguin Feather",
+  "item.coldpenguins.penguin_horn": "Goat Horn",
+  "instrument.coldpenguins.penguin": "Penguin",
+  "item.coldpenguins.santa_hat": "Santa Hat"
+}

@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "eggs=0": {
+      "model": "coldpenguins:block/penguin_nest_0"
+    },
+    "eggs=1": {
+      "model": "coldpenguins:block/penguin_nest_1"
+    },
+    "eggs=2": {
+      "model": "coldpenguins:block/penguin_nest_2"
+    },
+    "eggs=3": {
+      "model": "coldpenguins:block/penguin_nest_3"
+    }
+  }
+}

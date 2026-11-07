@@ -1,0 +1,19 @@
+trill.ogg is adapted from "Little Penguin (Eudyptula minor).ogg" by Benchill.
+Source: https://commons.wikimedia.org/wiki/File:Little_Penguin_(Eudyptula_minor).ogg
+License: Creative Commons Attribution 3.0 Unported, https://creativecommons.org/licenses/by/3.0/
+Changes: excerpted, filtered, faded, adjusted in volume, and converted to mono.
+
+honk.ogg is adapted from "Galápagos Penguin calling, 16 July 2025 - Spheniscus mendiculus.webm" by E bailey.
+Source: https://commons.wikimedia.org/wiki/File:Gal%C3%A1pagos_Penguin_calling,_16_July_2025_-_Spheniscus_mendiculus.webm
+License: CC0 1.0 Universal, https://creativecommons.org/publicdomain/zero/1.0/
+Changes: extracted audio, trimmed, filtered, faded, adjusted in volume, and converted to mono.
+
+music/penguin_dance.ogg is an original electronic composition with original penguin-themed lyrics.
+The rhythmic vocals were synthesized locally with Piper using the en_US-libritts_r-medium voice (speaker 0).
+Voice model: https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts_r/medium
+Source corpus: LibriTTS-R by Yuma Koizumi, Heiga Zen, Shigeki Karita, Yifan Ding, Kohei Yatabe, Nobuyuki Morioka, Michiel Bacchiani, Yu Zhang, Wei Han, and Ankur Bapna (2023).
+Dataset: https://www.openslr.org/141/
+License: Creative Commons Attribution 4.0, https://creativecommons.org/licenses/by/4.0/
+The vocals are newly synthesized, trimmed, retimed, processed, and mixed with original instrumental music.
+Voice model and synthesis engine are not included in this mod.
+Instrumental synthesis and mixing were generated for Cold Penguins.

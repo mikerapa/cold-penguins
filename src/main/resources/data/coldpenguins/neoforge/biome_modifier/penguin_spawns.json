@@ -1,0 +1,10 @@
+{
+  "type": "neoforge:add_spawns",
+  "biomes": "#coldpenguins:penguin_habitat",
+  "spawners": {
+    "type": "coldpenguins:penguin",
+    "weight": 16,
+    "minCount": 5,
+    "maxCount": 10
+  }
+}

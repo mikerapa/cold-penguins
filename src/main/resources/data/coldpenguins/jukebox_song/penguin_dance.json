@@ -1,0 +1,8 @@
+{
+  "sound_event": "coldpenguins:music.penguin_dance",
+  "description": {
+    "translate": "jukebox_song.coldpenguins.penguin_dance"
+  },
+  "length_in_seconds": 60.0,
+  "comparator_output": 12
+}

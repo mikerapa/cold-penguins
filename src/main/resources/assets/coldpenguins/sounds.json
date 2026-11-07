@@ -1,0 +1,22 @@
+{
+  "penguin.trill": {
+    "subtitle": "subtitles.coldpenguins.penguin.trill",
+    "sounds": [
+      "coldpenguins:penguin/trill"
+    ]
+  },
+  "penguin.honk": {
+    "subtitle": "subtitles.coldpenguins.penguin.honk",
+    "sounds": [
+      "coldpenguins:penguin/honk"
+    ]
+  },
+  "music.penguin_dance": {
+    "sounds": [
+      {
+        "name": "coldpenguins:music/penguin_dance",
+        "stream": true
+      }
+    ]
+  }
+}

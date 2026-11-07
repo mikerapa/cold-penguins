@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "coldpenguins:item/yellow_penguin_feather"
+  }
+}

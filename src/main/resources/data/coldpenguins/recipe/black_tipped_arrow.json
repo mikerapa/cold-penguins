@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    {
+      "item": "minecraft:flint"
+    },
+    {
+      "item": "minecraft:stick"
+    },
+    {
+      "item": "coldpenguins:penguin_feather"
+    }
+  ],
+  "result": {
+    "id": "coldpenguins:black_tipped_arrow",
+    "count": 4
+  }
+}
