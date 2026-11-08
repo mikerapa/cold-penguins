@@ -10,6 +10,8 @@
     "minecraft:jagged_peaks",
     "minecraft:frozen_ocean",
     "minecraft:deep_frozen_ocean",
-    "minecraft:frozen_river"
+    "minecraft:frozen_river",
+    "minecraft:beach",
+    "minecraft:stony_shore"
   ]
 }

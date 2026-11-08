@@ -72,8 +72,21 @@ public final class ColdPenguins {
     public static final Supplier<Item> PENGUIN_EGG = ITEMS.register("penguin_egg",
             id -> new PenguinEggItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id)).stacksTo(16)));
 
-    public static final Supplier<Item> PENGUIN_SPAWN_EGG = ITEMS.register("penguin_spawn_egg",
-            id -> new SpawnEggItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id)).spawnEgg(PENGUIN.get())));
+    public static final Supplier<Item> PENGUIN_SPAWN_EGG = registerPenguinSpawnEgg("penguin_spawn_egg", PenguinSpecies.ORIGINAL);
+    public static final Supplier<Item> EMPEROR_SPAWN_EGG = registerPenguinSpawnEgg("emperor_penguin_spawn_egg", PenguinSpecies.EMPEROR);
+    public static final Supplier<Item> GENTOO_SPAWN_EGG = registerPenguinSpawnEgg("gentoo_penguin_spawn_egg", PenguinSpecies.GENTOO);
+    public static final Supplier<Item> AFRICAN_SPAWN_EGG = registerPenguinSpawnEgg("african_penguin_spawn_egg", PenguinSpecies.AFRICAN);
+    public static final Supplier<Item> BLUE_SPAWN_EGG = registerPenguinSpawnEgg("blue_penguin_spawn_egg", PenguinSpecies.BLUE);
+
+    private static Supplier<Item> registerPenguinSpawnEgg(String name, PenguinSpecies species) {
+        return ITEMS.register(name, id -> {
+            var data = new net.minecraft.nbt.CompoundTag();
+            data.putString("Species", species.id);
+            return new SpawnEggItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id))
+                    .spawnEgg(PENGUIN.get()).component(DataComponents.ENTITY_DATA,
+                            net.minecraft.world.item.component.TypedEntityData.of(PENGUIN.get(), data)));
+        });
+    }
 
     static final ResourceKey<JukeboxSong> PENGUIN_DANCE_SONG = ResourceKey.create(
             Registries.JUKEBOX_SONG, Identifier.fromNamespaceAndPath(ID, "penguin_dance"));
@@ -173,6 +186,10 @@ public final class ColdPenguins {
             event.accept(PENGUIN_HORN.get());
         } else if (event.getTabKey().equals(CreativeModeTabs.SPAWN_EGGS)) {
             event.accept(PENGUIN_SPAWN_EGG.get());
+            event.accept(EMPEROR_SPAWN_EGG.get());
+            event.accept(GENTOO_SPAWN_EGG.get());
+            event.accept(AFRICAN_SPAWN_EGG.get());
+            event.accept(BLUE_SPAWN_EGG.get());
         }
     }
 

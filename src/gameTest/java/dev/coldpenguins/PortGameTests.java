@@ -29,6 +29,9 @@ public final class PortGameTests {
         if (!net.neoforged.neoforge.server.loading.ServerModLoader.isGameTestServer()) return;
         var environment = event.registerEnvironment(id("port"));
         register(event, environment, "saved_penguin", PortGameTests::savedPenguin);
+        register(event, environment, "species_persistence", PortGameTests::speciesPersistence);
+        register(event, environment, "species_biomes", PortGameTests::speciesBiomes);
+        register(event, environment, "species_spawn_eggs", PortGameTests::speciesSpawnEggs);
         register(event, environment, "chick_feeding", PortGameTests::chickFeeding);
         register(event, environment, "chick_growth", PortGameTests::chickGrowth);
         register(event, environment, "nest_hatching", PortGameTests::nestHatching);
@@ -70,6 +73,70 @@ public final class PortGameTests {
         helper.assertTrue(saved.getLongOr("GrowsUpAt", 0) == level.getGameTime() + 500, "Growth deadline survives reload");
         penguin.setBaby(false);
         helper.assertTrue(!penguin.isBaby(), "Chick can become adult");
+        helper.succeed();
+    }
+
+    private static void speciesPersistence(GameTestHelper helper) {
+        var level = helper.getLevel();
+        for (var species : PenguinSpecies.values()) {
+            var chick = Penguin.createChick(level, species);
+            helper.assertTrue(chick.isBaby() && chick.getSpecies() == species, "Chick species: " + species);
+            helper.assertTrue(Math.abs(chick.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.SCALE).getBaseValue() - species.scale) < 0.001,
+                    "Species physical size is applied");
+            var output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());
+            chick.addAdditionalSaveData(output);
+            var reloaded = Penguin.createChick(level);
+            reloaded.readAdditionalSaveData(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), output.buildResult()));
+            helper.assertTrue(reloaded.isBaby() && reloaded.getSpecies() == species, "Species survives chick reload");
+            reloaded.setAge(-1);
+            reloaded.aiStep();
+            helper.assertTrue(!reloaded.isBaby() && reloaded.getSpecies() == species, "Species survives natural maturation");
+        }
+        helper.succeed();
+    }
+
+    private static void speciesBiomes(GameTestHelper helper) {
+        var biomes = helper.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.BIOME);
+        var random = net.minecraft.util.RandomSource.create(42);
+        helper.assertTrue(PenguinSpecies.forBiome(biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.ICE_SPIKES), random)
+                == PenguinSpecies.EMPEROR, "Emperor penguins use icy biomes");
+        helper.assertTrue(PenguinSpecies.forBiome(biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.SNOWY_BEACH), random)
+                == PenguinSpecies.GENTOO, "Gentoo penguins use snowy shores");
+        var beachSpecies = java.util.EnumSet.noneOf(PenguinSpecies.class);
+        var rockySpecies = java.util.EnumSet.noneOf(PenguinSpecies.class);
+        for (int i = 0; i < 100; i++) {
+            beachSpecies.add(PenguinSpecies.forBiome(biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.BEACH), random));
+            rockySpecies.add(PenguinSpecies.forBiome(biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.STONY_SHORE), random));
+        }
+        helper.assertTrue(beachSpecies.equals(java.util.EnumSet.of(PenguinSpecies.AFRICAN, PenguinSpecies.BLUE)), "Warm beaches host African and Blue penguins");
+        helper.assertTrue(rockySpecies.equals(java.util.EnumSet.of(PenguinSpecies.GENTOO, PenguinSpecies.BLUE)), "Rocky shores host Gentoo and Blue penguins");
+        helper.succeed();
+    }
+
+    private static void speciesSpawnEggs(GameTestHelper helper) {
+        var eggs = java.util.List.of(ColdPenguins.PENGUIN_SPAWN_EGG, ColdPenguins.EMPEROR_SPAWN_EGG,
+                ColdPenguins.GENTOO_SPAWN_EGG, ColdPenguins.AFRICAN_SPAWN_EGG, ColdPenguins.BLUE_SPAWN_EGG);
+        var level = helper.getLevel();
+        for (int i = 0; i < eggs.size(); i++) {
+            var stack = new ItemStack(eggs.get(i).get());
+            var spawned = ColdPenguins.PENGUIN.get().spawn(level, stack, null,
+                    helper.absolutePos(new BlockPos(2, 2, 2)),
+                    net.minecraft.world.entity.EntitySpawnReason.SPAWN_ITEM_USE, false, false);
+            helper.assertTrue(spawned != null && spawned.getSpecies() == PenguinSpecies.values()[i],
+                    "Spawn egg selects its species independently of the biome: " + i);
+            helper.assertTrue(!spawned.isBaby(), "Spawn eggs create adults by default");
+            spawned.discard();
+            var parent = Penguin.createChick(level, PenguinSpecies.ORIGINAL);
+            parent.setBaby(false);
+            var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+            var offspring = net.minecraft.world.item.SpawnEggItem.spawnOffspringFromSpawnEgg(player, parent,
+                    ColdPenguins.PENGUIN.get(), level, parent.position(), stack);
+            helper.assertTrue(offspring.isPresent() && offspring.get() instanceof Penguin chick
+                    && chick.isBaby() && chick.getSpecies() == PenguinSpecies.values()[i],
+                    "Using an egg on a penguin creates a chick of the egg species");
+            helper.assertTrue(stack.isEmpty(), "Creating a chick consumes the survival spawn egg");
+            offspring.orElseThrow().discard();
+        }
         helper.succeed();
     }
 
@@ -123,15 +190,20 @@ public final class PortGameTests {
         var level = helper.getLevel();
         var nest = (PenguinNestBlock.Nest) level.getBlockEntity(helper.absolutePos(nestPos));
         var data = new CompoundTag();
+        data.putString("Species", "blue");
         data.putLong("IncubationRemaining", 1);
         data.putLong("LastIncubationGameTime", level.getGameTime());
         data.putLong("LastIncubationDayTime", level.getDefaultClockTime());
         nest.loadAdditional(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), data));
+        var nestSave = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());
+        nest.saveAdditional(nestSave);
+        nest.loadAdditional(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), nestSave.buildResult()));
         helper.succeedWhen(() -> {
             helper.assertBlockProperty(nestPos, PenguinNestBlock.EGGS, 0);
             var chicks = level.getEntitiesOfClass(Penguin.class,
                     new net.minecraft.world.phys.AABB(helper.absolutePos(nestPos)).inflate(3));
             helper.assertTrue(chicks.size() == 2 && chicks.stream().allMatch(Penguin::isBaby), "Both nest eggs hatch as chicks");
+            helper.assertTrue(chicks.stream().allMatch(chick -> chick.getSpecies() == PenguinSpecies.BLUE), "Nest chicks inherit saved species instead of the local biome");
         });
     }
 

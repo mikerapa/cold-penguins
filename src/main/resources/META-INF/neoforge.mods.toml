@@ -3,7 +3,7 @@ loaderVersion="[4,)"
 license="All Rights Reserved"
 [[mods]]
 modId="coldpenguins"
-version="1.9.2+mc26.3"
+version="1.12.0+mc26.3"
 displayName="Cold Penguins"
 description="Cold-biome penguin flocks with throwable eggs, grey chicks, and black-tipped arrows."
 [[dependencies.coldpenguins]]

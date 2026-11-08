@@ -76,6 +76,7 @@ final class PenguinNestBlock extends BaseEntityBlock {
 
     static final class Nest extends BlockEntity {
         private static final long INCUBATION_TICKS = 3 * 24_000L;
+        private PenguinSpecies species = PenguinSpecies.ORIGINAL;
         private long legacyHatchAt;
         private long remainingTicks = INCUBATION_TICKS;
         private long lastGameTime = -1;
@@ -83,6 +84,11 @@ final class PenguinNestBlock extends BaseEntityBlock {
 
         Nest(BlockPos pos, BlockState state) {
             super(ColdPenguins.NEST_ENTITY.get(), pos, state);
+        }
+
+        void setSpecies(PenguinSpecies species) {
+            this.species = species;
+            setChanged();
         }
 
         private void incubate(ServerLevel level, BlockPos pos, BlockState state) {
@@ -109,7 +115,7 @@ final class PenguinNestBlock extends BaseEntityBlock {
             int eggs = state.getValue(EGGS);
             int hatched = 0;
             for (int i = 0; i < eggs; i++) {
-                Penguin chick = Penguin.createChick(level);
+                Penguin chick = Penguin.createChick(level, species);
                 if (chick != null) {
                     chick.snapTo(pos.getX() + 0.28 + 0.22 * i, pos.getY() + 0.04, pos.getZ() + 0.5,
                             level.getRandom().nextFloat() * 360.0F, 0.0F);
@@ -136,6 +142,7 @@ final class PenguinNestBlock extends BaseEntityBlock {
         @Override
         protected void saveAdditional(ValueOutput tag) {
             super.saveAdditional(tag);
+            tag.putString("Species", species.id);
             if (legacyHatchAt > 0) {
                 tag.putLong("HatchAt", legacyHatchAt);
             } else {
@@ -148,6 +155,7 @@ final class PenguinNestBlock extends BaseEntityBlock {
         @Override
         protected void loadAdditional(ValueInput tag) {
             super.loadAdditional(tag);
+            species = PenguinSpecies.fromName(tag.getStringOr("Species", "original"));
             if (tag.getLong("IncubationRemaining").isPresent()) {
                 remainingTicks = Math.clamp(tag.getLongOr("IncubationRemaining", 0), 0, INCUBATION_TICKS);
                 lastGameTime = tag.getLongOr("LastIncubationGameTime", 0);

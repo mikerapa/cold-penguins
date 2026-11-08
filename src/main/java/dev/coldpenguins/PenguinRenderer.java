@@ -39,9 +39,30 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
     private static final Identifier GOLDEN_TEXTURE = Identifier.fromNamespaceAndPath(
             ColdPenguins.ID, "textures/entity/penguin_golden.png");
 
+    private static final Identifier[][] SPECIES_TEXTURES = java.util.Arrays.stream(PenguinSpecies.values())
+            .map(species -> new Identifier[]{
+                    Identifier.fromNamespaceAndPath(ColdPenguins.ID, "textures/entity/penguin_" + species.id + ".png"),
+                    Identifier.fromNamespaceAndPath(ColdPenguins.ID, "textures/entity/penguin_" + species.id + "_chick.png")})
+            .toArray(Identifier[][]::new);
+
+    private final Model adultModel = new Model(Model.createSpeciesRoot(false), 23);
+    private final Model emperorModel = new Model(Model.createSpeciesRoot(false, true), 23);
+    private final Model chickModel = new Model(Model.createSpeciesRoot(true), 23);
+    private final Model originalModel;
+
     public PenguinRenderer(EntityRendererProvider.Context context) {
         super(context, new Model(), 0.35F);
+        originalModel = model;
+        addLayer(new PenguinPupilLayer(this));
         addLayer(new SantaHatLayer(this));
+    }
+
+    @Override
+    public void submit(State state, PoseStack pose, SubmitNodeCollector collector,
+            net.minecraft.client.renderer.state.level.CameraRenderState camera) {
+        model = state.species == PenguinSpecies.ORIGINAL ? originalModel : state.isBaby ? chickModel
+                : state.species == PenguinSpecies.EMPEROR ? emperorModel : adultModel;
+        super.submit(state, pose, collector, camera);
     }
 
     @SubscribeEvent
@@ -68,6 +89,7 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
     public static final class State extends LivingEntityRenderState {
         boolean golden, santaHat, dancing, buildingNest;
         int entityId;
+        PenguinSpecies species = PenguinSpecies.ORIGINAL;
     }
 
     @Override
@@ -81,6 +103,7 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
         state.dancing = penguin.isDancing();
         state.buildingNest = penguin.isBuildingNest();
         state.entityId = penguin.getId();
+        state.species = penguin.getSpecies();
     }
 
     private static final class SantaHatLayer extends RenderLayer<State, Model> {
@@ -101,9 +124,11 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             pose.pushPose();
             getParentModel().root().translateAndRotate(pose);
             getParentModel().head.translateAndRotate(pose);
-            // The head crown is at -4 model pixels; keep the brim bottom above it.
-            pose.translate(0, 2.5F / 16.0F, 0);
-            pose.scale(0.82F, 0.82F, 0.82F);
+            float hatScale = (penguin.isBaby && penguin.species != PenguinSpecies.ORIGINAL)
+                    || penguin.species == PenguinSpecies.EMPEROR ? 0.94F : 0.82F;
+            float crown = penguin.species == PenguinSpecies.ORIGINAL ? -4.0F : -6.0F;
+            pose.translate(0, (crown + 8.25F * hatScale - 0.2F) / 16.0F, 0);
+            pose.scale(hatScale, hatScale, hatScale);
             collector.submitModelPart(hat.head, pose, RenderTypes.entityCutout(TEXTURE), light,
                     LivingEntityRenderer.getOverlayCoords(penguin, 0), null);
             pose.popPose();
@@ -112,6 +137,9 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
 
     @Override
     public Identifier getTextureLocation(State penguin) {
+        if (penguin.species != PenguinSpecies.ORIGINAL) {
+            return SPECIES_TEXTURES[penguin.species.ordinal()][penguin.isBaby ? 1 : 0];
+        }
         if (penguin.isBaby) {
             return CHICK_TEXTURE;
         }
@@ -141,19 +169,23 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
         private final ModelPart rightFlipper;
         private final ModelPart leftFoot;
         private final ModelPart rightFoot;
+        private final float footY;
 
         Model() {
-            this(createRoot());
+            this(createRoot(), 22);
         }
 
-        Model(ModelPart root) {
+        Model(ModelPart root, float footY) {
             super(root);
+            this.footY = footY;
             head = root.getChild("head");
             leftFlipper = root.getChild("left_flipper");
             rightFlipper = root.getChild("right_flipper");
             leftFoot = root.getChild("left_foot");
             rightFoot = root.getChild("right_foot");
         }
+
+        ModelPart head() { return head; }
 
         private static ModelPart createRoot() {
             MeshDefinition mesh = new MeshDefinition();
@@ -175,6 +207,41 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             return LayerDefinition.create(mesh, 64, 32).bakeRoot();
         }
 
+        private static ModelPart createSpeciesRoot(boolean chick) {
+            return createSpeciesRoot(chick, false);
+        }
+
+        private static ModelPart createSpeciesRoot(boolean chick, boolean emperor) {
+            MeshDefinition mesh = new MeshDefinition();
+            PartDefinition parts = mesh.getRoot();
+            if (chick) {
+                parts.addOrReplaceChild("body", CubeListBuilder.create().texOffs(0, 0)
+                        .addBox(-4.5F, -8, -3.5F, 9, 8, 7), PartPose.offset(0, 23, 0));
+                parts.addOrReplaceChild("head", CubeListBuilder.create().texOffs(0, 18)
+                        .addBox(-4, -6, -3.5F, 8, 7, 7).texOffs(32, 20)
+                        .addBox(-1, -2, -5.5F, 2, 2, 2), PartPose.offset(0, 14, 0));
+            } else {
+                parts.addOrReplaceChild("body", CubeListBuilder.create().texOffs(0, 0)
+                        .addBox(-3.5F, -9, -2.5F, 7, 9, 5), PartPose.offset(0, 23, 0));
+                float halfWidth = emperor ? 4.0F : 3.5F;
+                float halfDepth = emperor ? 3.5F : 3.0F;
+                parts.addOrReplaceChild("head", CubeListBuilder.create().texOffs(0, 16)
+                        .addBox(-halfWidth, -6, -halfDepth, emperor ? 8 : 7, 6, emperor ? 7 : 6).texOffs(32, 18)
+                        .addBox(-1.5F, -2.5F, -halfDepth - 3, 3, 2, 3), PartPose.offset(0, 14, 0));
+            }
+            float side = chick ? 4.5F : 3.5F;
+            int flipperHeight = chick ? 6 : 8;
+            parts.addOrReplaceChild("left_flipper", CubeListBuilder.create().texOffs(32, 0)
+                    .addBox(0, 0, -2, 1, flipperHeight, 4), PartPose.offset(side, 15, 0));
+            parts.addOrReplaceChild("right_flipper", CubeListBuilder.create().texOffs(32, 0)
+                    .addBox(-1, 0, -2, 1, flipperHeight, 4), PartPose.offset(-side, 15, 0));
+            for (String name : new String[]{"left_foot", "right_foot"}) {
+                parts.addOrReplaceChild(name, CubeListBuilder.create().texOffs(44, 0)
+                        .addBox(-1.5F, 0, -3, 3, 1, 4), PartPose.offset(name.equals("left_foot") ? 2 : -2, 23, 0));
+            }
+            return LayerDefinition.create(mesh, 64, 64).bakeRoot();
+        }
+
         @Override
         public void setupAnim(State penguin) {
             super.setupAnim(penguin);
@@ -190,7 +257,7 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             root.yRot = 0;
             root.zRot = 0;
             head.zRot = 0;
-            leftFoot.y = rightFoot.y = 22;
+            leftFoot.y = rightFoot.y = footY;
             leftFoot.z = rightFoot.z = 0;
             head.yRot = headYaw * Mth.DEG_TO_RAD;
             head.xRot = headPitch * Mth.DEG_TO_RAD;

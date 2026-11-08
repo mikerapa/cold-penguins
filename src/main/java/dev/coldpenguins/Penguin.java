@@ -68,6 +68,8 @@ import java.util.List;
 import java.util.UUID;
 
 public final class Penguin extends Animal {
+    private static final EntityDataAccessor<Integer> SPECIES =
+            SynchedEntityData.defineId(Penguin.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> GOLDEN_PLUMAGE =
             SynchedEntityData.defineId(Penguin.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> BUILDING_NEST =
@@ -160,9 +162,27 @@ public final class Penguin extends Animal {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
+        builder.define(SPECIES, 0);
         builder.define(GOLDEN_PLUMAGE, false);
         builder.define(BUILDING_NEST, false);
         builder.define(DANCING, false);
+    }
+
+    public PenguinSpecies getSpecies() {
+        return PenguinSpecies.values()[Math.clamp(entityData.get(SPECIES), 0, PenguinSpecies.values().length - 1)];
+    }
+
+    void setSpecies(PenguinSpecies species) {
+        entityData.set(SPECIES, species.ordinal());
+        getAttribute(Attributes.SCALE).setBaseValue(species.scale);
+        refreshDimensions();
+        if (species != PenguinSpecies.ORIGINAL) entityData.set(GOLDEN_PLUMAGE, false);
+    }
+
+    @Override
+    protected net.minecraft.network.chat.Component getTypeName() {
+        return getSpecies() == PenguinSpecies.ORIGINAL ? super.getTypeName()
+                : net.minecraft.network.chat.Component.translatable("entity.coldpenguins.penguin." + getSpecies().id);
     }
 
     boolean hasGoldenPlumage() {
@@ -227,12 +247,17 @@ public final class Penguin extends Animal {
     }
 
     private void rollPlumage() {
-        entityData.set(GOLDEN_PLUMAGE, random.nextInt(100) == 0);
+        entityData.set(GOLDEN_PLUMAGE, getSpecies() == PenguinSpecies.ORIGINAL && random.nextInt(100) == 0);
     }
 
     static Penguin createChick(ServerLevel level) {
+        return createChick(level, PenguinSpecies.ORIGINAL);
+    }
+
+    static Penguin createChick(ServerLevel level, PenguinSpecies species) {
         Penguin chick = ColdPenguins.PENGUIN.get().create(level, EntitySpawnReason.BREEDING);
         if (chick != null) {
+            chick.setSpecies(species);
             chick.rollPlumage();
             chick.setBaby(true);
         }
@@ -243,14 +268,16 @@ public final class Penguin extends Animal {
     public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
                                         EntitySpawnReason reason, SpawnGroupData groupData) {
         rollPlumage();
+        setSpecies(PenguinSpecies.forBiome(level.getBiome(blockPosition()), random));
         boolean natural = reason == EntitySpawnReason.NATURAL || reason == EntitySpawnReason.CHUNK_GENERATION;
         if (!natural) {
             return super.finalizeSpawn(level, difficulty, reason, new AgeableMobGroupData(false));
         }
 
-        FlockData flock = groupData instanceof FlockData existing ? existing : new FlockData(getUUID());
+        FlockData flock = groupData instanceof FlockData existing ? existing : new FlockData(getUUID(), getSpecies());
         int flockMembers = flock.getGroupSize();
         familyId = flock.familyId;
+        setSpecies(flock.species);
         SpawnGroupData result = super.finalizeSpawn(level, difficulty, reason, flock);
         if (flockMembers == 1 || (flockMembers > 1 && random.nextFloat() < 0.25F)) {
             setBaby(true);
@@ -299,11 +326,13 @@ public final class Penguin extends Animal {
     public static boolean checkLandSpawnRules(EntityType<Penguin> type, LevelAccessor level,
                                               EntitySpawnReason reason, BlockPos position, RandomSource random) {
         BlockPos ground = position.below();
+        boolean ice = level.getBlockState(ground).is(BlockTags.ICE);
+        boolean emperorOnIce = ice && PenguinSpecies.isEmperorHabitat(level.getBiome(position));
         return level.getFluidState(position).isEmpty()
                 && level.getFluidState(ground).isEmpty()
-                && !level.getBlockState(ground).is(BlockTags.ICE)
                 && level.getBlockState(ground).isFaceSturdy(level, ground, Direction.UP)
-                && checkMobSpawnRules(type, level, reason, position, random);
+                // Vanilla ice only permits polar bears; explicitly allow emperor colonies too.
+                && (emperorOnIce || (!ice && checkMobSpawnRules(type, level, reason, position, random)));
     }
 
     @Override
@@ -334,7 +363,18 @@ public final class Penguin extends Animal {
 
     @Override
     public Penguin getBreedOffspring(ServerLevel level, AgeableMob partner) {
-        return null;
+        // Natural breeding still uses the nest-building override; vanilla spawn eggs use this hook.
+        return createChick(level, getSpecies());
+    }
+
+    @Override
+    protected void applyImplicitComponents(net.minecraft.core.component.DataComponentGetter components) {
+        super.applyImplicitComponents(components);
+        var data = components.get(net.minecraft.core.component.DataComponents.ENTITY_DATA);
+        if (data != null && data.type() == ColdPenguins.PENGUIN.get()) {
+            var tag = data.copyTagWithoutId();
+            if (tag.contains("Species")) setSpecies(PenguinSpecies.fromName(tag.getStringOr("Species", "original")));
+        }
     }
 
     @Override
@@ -464,6 +504,7 @@ public final class Penguin extends Animal {
     @Override
     public void addAdditionalSaveData(ValueOutput tag) {
         super.addAdditionalSaveData(tag);
+        tag.putString("Species", getSpecies().id);
         tag.putLong("GrowsUpAt", growsUpAt);
         tag.putBoolean("GoldenPlumage", hasGoldenPlumage());
         tag.putLong("SwimStarted", swimStarted);
@@ -479,6 +520,7 @@ public final class Penguin extends Animal {
     @Override
     public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
+        setSpecies(PenguinSpecies.fromName(tag.getStringOr("Species", "original")));
         long ageDeadline = level().getGameTime() - (long) getAge();
         long savedDeadline = tag.getLongOr("GrowsUpAt", ageDeadline);
         growsUpAt = isBaby() ? Math.min(savedDeadline > 0 ? savedDeadline : ageDeadline, ageDeadline) : 0;
@@ -488,7 +530,7 @@ public final class Penguin extends Animal {
         lastDryLand = tag.getLong("LastDryLand").map(BlockPos::of).orElse(null);
         familyId = tag.read("Family", UUIDUtil.CODEC).orElse(null);
         // Resize penguins saved by the original release.
-        getAttribute(Attributes.SCALE).setBaseValue(1.0);
+        getAttribute(Attributes.SCALE).setBaseValue(getSpecies().scale);
         refreshDimensions();
     }
 
@@ -538,9 +580,12 @@ public final class Penguin extends Animal {
     private static final class FlockData extends AgeableMobGroupData {
         private final UUID familyId;
 
-        FlockData(UUID familyId) {
+        private final PenguinSpecies species;
+
+        FlockData(UUID familyId, PenguinSpecies species) {
             super(false);
             this.familyId = familyId;
+            this.species = species;
         }
     }
 
@@ -734,6 +779,9 @@ public final class Penguin extends Animal {
                 var nest = ColdPenguins.NEST.get().defaultBlockState()
                         .setValue(PenguinNestBlock.EGGS, 1 + first.random.nextInt(3));
                 if (level.setBlock(position, nest, Block.UPDATE_ALL)) {
+                    if (level.getBlockEntity(position) instanceof PenguinNestBlock.Nest nestEntity) {
+                        nestEntity.setSpecies(first.random.nextBoolean() ? first.getSpecies() : second.getSpecies());
+                    }
                     first.finalizeSpawnChildFromBreeding(level, second, null);
                     first.playSound(ColdPenguins.PENGUIN_HONK.get(), first.getSoundVolume(), first.getVoicePitch());
                 }
