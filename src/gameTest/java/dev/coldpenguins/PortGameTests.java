@@ -26,8 +26,11 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 public final class PortGameTests {
     @SubscribeEvent
     public static void register(RegisterGameTestsEvent event) {
+        if (!net.neoforged.neoforge.server.loading.ServerModLoader.isGameTestServer()) return;
         var environment = event.registerEnvironment(id("port"));
         register(event, environment, "saved_penguin", PortGameTests::savedPenguin);
+        register(event, environment, "chick_feeding", PortGameTests::chickFeeding);
+        register(event, environment, "chick_growth", PortGameTests::chickGrowth);
         register(event, environment, "nest_hatching", PortGameTests::nestHatching);
         register(event, environment, "item_components", PortGameTests::itemComponents);
         register(event, environment, "loot", PortGameTests::loot);
@@ -67,6 +70,48 @@ public final class PortGameTests {
         helper.assertTrue(saved.getLongOr("GrowsUpAt", 0) == level.getGameTime() + 500, "Growth deadline survives reload");
         penguin.setBaby(false);
         helper.assertTrue(!penguin.isBaby(), "Chick can become adult");
+        helper.succeed();
+    }
+
+    private static void chickFeeding(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        for (var fish : java.util.List.of(net.minecraft.world.item.Items.COD, net.minecraft.world.item.Items.SALMON)) {
+            var chick = Penguin.createChick(level);
+            player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(fish, 2));
+            int before = chick.getAge();
+            var result = chick.mobInteract(player, net.minecraft.world.InteractionHand.MAIN_HAND);
+            helper.assertTrue(result.consumesAction(), "Chick accepts " + fish);
+            helper.assertTrue(player.getMainHandItem().getCount() == 1, "Feeding consumes one fish");
+            helper.assertTrue(chick.getAge() > before && chick.isBaby(), "Feeding advances growth");
+            var output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());
+            chick.addAdditionalSaveData(output);
+            helper.assertTrue(output.buildResult().getLongOr("GrowsUpAt", 0)
+                    == level.getGameTime() - chick.getAge(), "Feeding also advances the saved deadline");
+        }
+        helper.succeed();
+    }
+
+    private static void chickGrowth(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var chick = Penguin.createChick(level);
+        chick.setNoAi(true);
+        chick.setAge(-2);
+        chick.aiStep();
+        chick.aiStep();
+        helper.assertTrue(!chick.isBaby(), "Loaded chick grows up automatically");
+        var legacy = new CompoundTag();
+        legacy.putInt("Age", -2); // Older saves may have no custom deadline.
+        chick.readAdditionalSaveData(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), legacy));
+        chick.aiStep();
+        chick.aiStep();
+        helper.assertTrue(!chick.isBaby(), "Legacy chick without deadline grows up automatically");
+        var unloaded = new CompoundTag();
+        unloaded.putInt("Age", -240000);
+        unloaded.putLong("GrowsUpAt", level.getGameTime() - 1);
+        chick.readAdditionalSaveData(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), unloaded));
+        chick.aiStep();
+        helper.assertTrue(!chick.isBaby(), "Chick whose deadline passed while unloaded becomes adult");
         helper.succeed();
     }
 

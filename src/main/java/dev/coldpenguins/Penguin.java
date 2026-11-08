@@ -369,19 +369,16 @@ public final class Penguin extends Animal {
 
     @Override
     public void setAge(int age) {
-        boolean wasBaby = isBaby();
         super.setAge(age);
-        if (age < 0 && (!wasBaby || growsUpAt == 0)) {
-            growsUpAt = level().getGameTime() + CHICK_AGE_TICKS;
-        } else if (age >= 0) {
-            growsUpAt = 0;
-        }
+        growsUpAt = age < 0 ? level().getGameTime() - (long) age : 0;
     }
 
     @Override
     public void aiStep() {
-        if (!level().isClientSide() && isBaby() && growsUpAt > 0 && level().getGameTime() >= growsUpAt) {
-            setBaby(false);
+        if (!level().isClientSide() && isBaby() && !isAgeLocked() && growsUpAt > 0) {
+            // Reconcile elapsed time while unloaded before vanilla advances the loaded age.
+            long remaining = Math.max(0, growsUpAt - level().getGameTime());
+            setAge((int) -Math.min(remaining, -(long) getAge()));
         }
         super.aiStep();
         if (level() instanceof ServerLevel server) {
@@ -442,8 +439,8 @@ public final class Penguin extends Animal {
             }
             return InteractionResult.SUCCESS;
         }
-        if (isBaby() && isFood(player.getItemInHand(hand))) {
-            return InteractionResult.PASS;
+        if (isBaby() && isFood(held)) {
+            return super.mobInteract(player, hand);
         }
         if (hand != InteractionHand.MAIN_HAND || !player.getItemInHand(hand).isEmpty()) {
             return super.mobInteract(player, hand);
@@ -482,7 +479,9 @@ public final class Penguin extends Animal {
     @Override
     public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
-        growsUpAt = tag.getLongOr("GrowsUpAt", 0);
+        long ageDeadline = level().getGameTime() - (long) getAge();
+        long savedDeadline = tag.getLongOr("GrowsUpAt", ageDeadline);
+        growsUpAt = isBaby() ? Math.min(savedDeadline > 0 ? savedDeadline : ageDeadline, ageDeadline) : 0;
         entityData.set(GOLDEN_PLUMAGE, tag.getBooleanOr("GoldenPlumage", false));
         swimStarted = tag.getLongOr("SwimStarted", -1);
         nextSwimTime = tag.getLongOr("NextSwimTime", 0);

@@ -101,8 +101,9 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             pose.pushPose();
             getParentModel().root().translateAndRotate(pose);
             getParentModel().head.translateAndRotate(pose);
-            pose.translate(0, 4.0F / 16.0F, 0);
-            pose.scale(0.88F, 0.88F, 0.88F);
+            // The head crown is at -4 model pixels; keep the brim bottom above it.
+            pose.translate(0, 2.5F / 16.0F, 0);
+            pose.scale(0.82F, 0.82F, 0.82F);
             collector.submitModelPart(hat.head, pose, RenderTypes.entityCutout(TEXTURE), light,
                     LivingEntityRenderer.getOverlayCoords(penguin, 0), null);
             pose.popPose();
