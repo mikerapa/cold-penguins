@@ -22,5 +22,9 @@
   "item.coldpenguins.emperor_penguin_spawn_egg": "Emperor Penguin Spawn Egg",
   "item.coldpenguins.gentoo_penguin_spawn_egg": "Gentoo Penguin Spawn Egg",
   "item.coldpenguins.african_penguin_spawn_egg": "African Penguin Spawn Egg",
-  "item.coldpenguins.blue_penguin_spawn_egg": "Little Blue Penguin Spawn Egg"
+  "item.coldpenguins.blue_penguin_spawn_egg": "Little Blue Penguin Spawn Egg",
+  "item.coldpenguins.macaroni_penguin_spawn_egg": "Macaroni Penguin Spawn Egg",
+  "entity.coldpenguins.penguin.macaroni": "Macaroni Penguin",
+  "item.coldpenguins.rockhopper_penguin_spawn_egg": "Southern Rockhopper Penguin Spawn Egg",
+  "entity.coldpenguins.penguin.rockhopper": "Southern Rockhopper Penguin"
 }

@@ -35,7 +35,7 @@ final class ThrownPenguinEgg extends ThrowableItemProjectile {
             server.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, net.minecraft.world.item.ItemStackTemplate.fromNonEmptyStack(getItem())),
                     impact.x, impact.y, impact.z, 8, 0.1, 0.1, 0.1, 0.05);
             if (random.nextInt(10) < 3) {
-                Penguin chick = Penguin.createChick(server, PenguinSpecies.forBiome(server.getBiome(blockPosition()), random));
+                Penguin chick = Penguin.createChick(server, PenguinSpecies.forLocation(server, blockPosition(), random));
                 if (chick != null) {
                     Vec3 hatchPosition = impact;
                     if (hit instanceof BlockHitResult blockHit) {

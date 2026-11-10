@@ -46,7 +46,9 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             .toArray(Identifier[][]::new);
 
     private final Model adultModel = new Model(Model.createSpeciesRoot(false), 23);
-    private final Model emperorModel = new Model(Model.createSpeciesRoot(false, true), 23);
+    private final Model emperorModel = new Model(Model.createSpeciesRoot(false, PenguinSpecies.EMPEROR), 23);
+    private final Model macaroniModel = new Model(Model.createSpeciesRoot(false, PenguinSpecies.MACARONI), 23);
+    private final Model rockhopperModel = new Model(Model.createSpeciesRoot(false, PenguinSpecies.ROCKHOPPER), 23);
     private final Model chickModel = new Model(Model.createSpeciesRoot(true), 23);
     private final Model originalModel;
 
@@ -61,7 +63,12 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
     public void submit(State state, PoseStack pose, SubmitNodeCollector collector,
             net.minecraft.client.renderer.state.level.CameraRenderState camera) {
         model = state.species == PenguinSpecies.ORIGINAL ? originalModel : state.isBaby ? chickModel
-                : state.species == PenguinSpecies.EMPEROR ? emperorModel : adultModel;
+                : switch (state.species) {
+                    case EMPEROR -> emperorModel;
+                    case MACARONI -> macaroniModel;
+                    case ROCKHOPPER -> rockhopperModel;
+                    default -> adultModel;
+                };
         super.submit(state, pose, collector, camera);
     }
 
@@ -126,7 +133,8 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
             getParentModel().head.translateAndRotate(pose);
             float hatScale = (penguin.isBaby && penguin.species != PenguinSpecies.ORIGINAL)
                     || penguin.species == PenguinSpecies.EMPEROR ? 0.94F : 0.82F;
-            float crown = penguin.species == PenguinSpecies.ORIGINAL ? -4.0F : -6.0F;
+            float crown = penguin.species == PenguinSpecies.ORIGINAL ? -4.0F
+                    : !penguin.isBaby && penguin.species.hasCrest() ? -7.0F : -6.0F;
             pose.translate(0, (crown + 8.25F * hatScale - 0.2F) / 16.0F, 0);
             pose.scale(hatScale, hatScale, hatScale);
             collector.submitModelPart(hat.head, pose, RenderTypes.entityCutout(TEXTURE), light,
@@ -208,10 +216,11 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
         }
 
         private static ModelPart createSpeciesRoot(boolean chick) {
-            return createSpeciesRoot(chick, false);
+            return createSpeciesRoot(chick, PenguinSpecies.GENTOO);
         }
 
-        private static ModelPart createSpeciesRoot(boolean chick, boolean emperor) {
+        private static ModelPart createSpeciesRoot(boolean chick, PenguinSpecies species) {
+            boolean emperor = species == PenguinSpecies.EMPEROR;
             MeshDefinition mesh = new MeshDefinition();
             PartDefinition parts = mesh.getRoot();
             if (chick) {
@@ -225,9 +234,22 @@ public final class PenguinRenderer extends MobRenderer<Penguin, PenguinRenderer.
                         .addBox(-3.5F, -9, -2.5F, 7, 9, 5), PartPose.offset(0, 23, 0));
                 float halfWidth = emperor ? 4.0F : 3.5F;
                 float halfDepth = emperor ? 3.5F : 3.0F;
-                parts.addOrReplaceChild("head", CubeListBuilder.create().texOffs(0, 16)
+                CubeListBuilder head = CubeListBuilder.create().texOffs(0, 16)
                         .addBox(-halfWidth, -6, -halfDepth, emperor ? 8 : 7, 6, emperor ? 7 : 6).texOffs(32, 18)
-                        .addBox(-1.5F, -2.5F, -halfDepth - 3, 3, 2, 3), PartPose.offset(0, 14, 0));
+                        .addBox(-1.5F, species.hasCrest() ? -2 : -2.5F, -halfDepth - 3, 3, 2, 3);
+                if (species == PenguinSpecies.MACARONI) {
+                    // A continuous brow with short swept tips, clear of the eyes below.
+                    head.texOffs(0, 40).addBox(-3.5F, -6.5F, -3.25F, 7, 1, 1)
+                        .texOffs(18, 40).addBox(-4.25F, -6.75F, -2.75F, 2, 1, 3)
+                        .texOffs(18, 40).addBox(2.25F, -6.75F, -2.75F, 2, 1, 3);
+                } else if (species == PenguinSpecies.ROCKHOPPER) {
+                    head.texOffs(0, 40).addBox(-4.5F, -5.5F, -3.25F, 3, 1, 1)
+                        .texOffs(0, 40).addBox(1.5F, -5.5F, -3.25F, 3, 1, 1)
+                        .texOffs(12, 40).addBox(-2, -7, -1, 1, 1, 2)
+                        .texOffs(12, 40).addBox(0, -7, -1, 1, 1, 2)
+                        .texOffs(12, 40).addBox(2, -7, -1, 1, 1, 2);
+                }
+                parts.addOrReplaceChild("head", head, PartPose.offset(0, 14, 0));
             }
             float side = chick ? 4.5F : 3.5F;
             int flipperHeight = chick ? 6 : 8;

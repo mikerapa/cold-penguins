@@ -115,7 +115,8 @@ public final class PortGameTests {
 
     private static void speciesSpawnEggs(GameTestHelper helper) {
         var eggs = java.util.List.of(ColdPenguins.PENGUIN_SPAWN_EGG, ColdPenguins.EMPEROR_SPAWN_EGG,
-                ColdPenguins.GENTOO_SPAWN_EGG, ColdPenguins.AFRICAN_SPAWN_EGG, ColdPenguins.BLUE_SPAWN_EGG);
+                ColdPenguins.GENTOO_SPAWN_EGG, ColdPenguins.AFRICAN_SPAWN_EGG, ColdPenguins.BLUE_SPAWN_EGG,
+                ColdPenguins.MACARONI_SPAWN_EGG, ColdPenguins.ROCKHOPPER_SPAWN_EGG);
         var level = helper.getLevel();
         for (int i = 0; i < eggs.size(); i++) {
             var stack = new ItemStack(eggs.get(i).get());

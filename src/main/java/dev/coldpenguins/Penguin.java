@@ -55,6 +55,7 @@ import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
@@ -268,13 +269,13 @@ public final class Penguin extends Animal {
     public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
                                         EntitySpawnReason reason, SpawnGroupData groupData) {
         rollPlumage();
-        setSpecies(PenguinSpecies.forBiome(level.getBiome(blockPosition()), random));
         boolean natural = reason == EntitySpawnReason.NATURAL || reason == EntitySpawnReason.CHUNK_GENERATION;
         if (!natural) {
+            setSpecies(PenguinSpecies.forLocation(level, blockPosition(), random));
             return super.finalizeSpawn(level, difficulty, reason, new AgeableMobGroupData(false));
         }
 
-        FlockData flock = groupData instanceof FlockData existing ? existing : new FlockData(getUUID(), getSpecies());
+        FlockData flock = groupData instanceof FlockData existing ? existing : new FlockData(getUUID(), PenguinSpecies.forLocation(level, blockPosition(), random));
         int flockMembers = flock.getGroupSize();
         familyId = flock.familyId;
         setSpecies(flock.species);
@@ -332,7 +333,9 @@ public final class Penguin extends Animal {
                 && level.getFluidState(ground).isEmpty()
                 && level.getBlockState(ground).isFaceSturdy(level, ground, Direction.UP)
                 // Vanilla ice only permits polar bears; explicitly allow emperor colonies too.
-                && (emperorOnIce || (!ice && checkMobSpawnRules(type, level, reason, position, random)));
+                && (emperorOnIce || (!ice && checkMobSpawnRules(type, level, reason, position, random)))
+                && (!level.getBiome(position).is(Biomes.WINDSWEPT_HILLS)
+                    || PenguinSpecies.hasNearbyOcean(level, position, false));
     }
 
     @Override

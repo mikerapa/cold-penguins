@@ -12,11 +12,16 @@ PALETTES = {
     'gentoo': ((33,32,37), (237,235,235), (239,121,29), (232,124,32)),
     'african': ((33,31,35), (237,231,226), (36,34,37), (38,35,38)),
     'blue': ((51,74,106), (231,233,235), (39,47,59), (206,146,147)),
+    'macaroni': ((32,31,37), (239,232,218), (226,111,28), (220,133,54)),
+    'rockhopper': ((38,38,45), (239,232,218), (195,70,31), (213,127,62)),
 }
 DOWN = {'emperor':((169,168,175),(204,202,209),(29,28,32)),
         'gentoo':((120,110,111),(190,182,183),(89,81,83)),
         'african':((94,91,97),(167,164,171),(61,58,64)),
-        'blue':((135,124,123),(194,182,177),(114,104,105))}
+        'blue':((135,124,123),(194,182,177),(114,104,105)),
+        'macaroni':((119,116,123),(193,187,186),(82,79,85)),
+        'rockhopper':((113,111,119),(185,182,184),(76,73,80))}
+CREST = {'macaroni': (241,162,30), 'rockhopper': (244,207,47)}
 
 def cube(u,v,w,h,d):
     return {'front':(u+d,v+d,w,h),'right':(u,v+d,d,h),
@@ -63,8 +68,8 @@ for species,(back,belly,bill,feet) in PALETTES.items():
             x,y,_,_=face
             draw.rectangle((x+1,y+3,x+1,y+4),fill=eye)
             draw.rectangle((x+6,y+3,x+6,y+4),fill=eye)
-            for r in beak.values():paint(image,r,(35,34,37),rng,3)
-            for r in foot.values():paint(image,r,(35,33,36),rng,3)
+            for r in beak.values():paint(image,r,bill if species in CREST else (35,34,37),rng,3)
+            for r in foot.values():paint(image,r,feet if species in CREST else (35,33,36),rng,3)
         else:
             for r in body.values():paint(image,r,back,rng)
             paint(image,body['front'],belly,rng,7)
@@ -162,6 +167,23 @@ for species,(back,belly,bill,feet) in PALETTES.items():
             for ex in eyeXs:
                 draw.rectangle((fx+ex,fy+5,fx+ex+2,fy+7),fill=(246,244,243,255))
                 # Pupils are rendered separately so their gaze can move.
+        if not baby and species in CREST:
+            crest = CREST[species]
+            if species == 'macaroni':
+                # Brow design: a continuous forehead band with two short swept tips.
+                for r in cube(0,40,7,1,1).values(): paint(image,r,crest,rng)
+                for r in cube(18,40,2,1,3).values(): paint(image,r,crest,rng)
+                paint(image,region(face,0,0,7,1),crest,rng)
+            else:
+                for r in cube(0,40,3,1,1).values(): paint(image,r,crest,rng)
+                for r in cube(12,40,1,1,2).values(): paint(image,r,back,rng)
+                for xx in (0,5): paint(image,region(face,xx,1,2,1),crest,rng)
+            # Leave a gap below the crest and room for the animated dark pupil.
+            paint(image,region(face,0,2,7,2),back,rng)
+            draw=ImageDraw.Draw(image)
+            eye_color=(194,54,51,255) if species == 'rockhopper' else (245,243,242,255)
+            for eye_x in (1,5):
+                draw.rectangle((x+eye_x,y+2,x+eye_x,y+3),fill=eye_color)
         image.save(ROOT/'textures/entity'/f'penguin_{species}{suffix}.png')
     # A native 16px egg silhouette with species colors and contrasting speckles.
     egg=Image.new('RGBA',(16,16),(0,0,0,0));draw=ImageDraw.Draw(egg)
@@ -170,7 +192,7 @@ for species,(back,belly,bill,feet) in PALETTES.items():
         shade=(0.72+0.22*(1-(yy-2)/13))
         color=tuple(int(c*shade) for c in back)+(255,)
         draw.line((7-half,yy,8+half,yy),fill=color)
-    accents={'emperor':(244,188,49),'gentoo':(240,130,36),'african':(233,169,177),'blue':(213,153,153)}
+    accents={'emperor':(244,188,49),'gentoo':(240,130,36),'african':(233,169,177),'blue':(213,153,153), **CREST}
     for px,py in ((5,5),(10,7),(4,10),(9,12)):
         draw.rectangle((px,py,px+1,py+1),fill=(*accents[species],255))
     draw.line((5,3,7,3),fill=(*belly,255))

@@ -77,6 +77,8 @@ public final class ColdPenguins {
     public static final Supplier<Item> GENTOO_SPAWN_EGG = registerPenguinSpawnEgg("gentoo_penguin_spawn_egg", PenguinSpecies.GENTOO);
     public static final Supplier<Item> AFRICAN_SPAWN_EGG = registerPenguinSpawnEgg("african_penguin_spawn_egg", PenguinSpecies.AFRICAN);
     public static final Supplier<Item> BLUE_SPAWN_EGG = registerPenguinSpawnEgg("blue_penguin_spawn_egg", PenguinSpecies.BLUE);
+    public static final Supplier<Item> ROCKHOPPER_SPAWN_EGG = registerPenguinSpawnEgg("rockhopper_penguin_spawn_egg", PenguinSpecies.ROCKHOPPER);
+    public static final Supplier<Item> MACARONI_SPAWN_EGG = registerPenguinSpawnEgg("macaroni_penguin_spawn_egg", PenguinSpecies.MACARONI);
 
     private static Supplier<Item> registerPenguinSpawnEgg(String name, PenguinSpecies species) {
         return ITEMS.register(name, id -> {
@@ -190,6 +192,8 @@ public final class ColdPenguins {
             event.accept(GENTOO_SPAWN_EGG.get());
             event.accept(AFRICAN_SPAWN_EGG.get());
             event.accept(BLUE_SPAWN_EGG.get());
+            event.accept(ROCKHOPPER_SPAWN_EGG.get());
+            event.accept(MACARONI_SPAWN_EGG.get());
         }
     }
 
